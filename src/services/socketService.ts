@@ -3,6 +3,8 @@ import { io, Socket } from 'socket.io-client';
 class SocketService {
   private socket: Socket | null = null;
   private isConnected = false;
+  private connectionAttempts = 0;
+  private maxConnectionAttempts = 3;
 
   connect(): Socket {
     if (this.socket && this.isConnected) {
@@ -13,11 +15,17 @@ class SocketService {
     this.socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
+      timeout: 5000,
+      reconnection: true,
+      reconnectionAttempts: this.maxConnectionAttempts,
+      reconnectionDelay: 2000,
+      forceNew: true,
     });
 
     this.socket.on('connect', () => {
       console.log('Connected to backend server');
       this.isConnected = true;
+      this.connectionAttempts = 0;
     });
 
     this.socket.on('disconnect', () => {
@@ -26,8 +34,19 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('Connection error:', error);
+      this.connectionAttempts++;
+      console.warn(`Connection attempt ${this.connectionAttempts}/${this.maxConnectionAttempts} failed:`, error.message);
       this.isConnected = false;
+      
+      if (this.connectionAttempts >= this.maxConnectionAttempts) {
+        console.warn('Max connection attempts reached. Backend server may not be running.');
+        console.info('The application will continue to work with simulated data.');
+      }
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.warn('Failed to reconnect to backend server after maximum attempts.');
+      console.info('The application will continue to work with simulated data.');
     });
 
     return this.socket;

@@ -39,7 +39,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     socketInstance.on('connect_error', (error: Error) => {
-      console.error('Socket connection error:', error);
+      // Reduce console noise - the socketService already handles logging
+      setIsConnected(false);
+    });
+
+    socketInstance.on('reconnect_failed', () => {
+      console.info('Socket reconnection failed - continuing with offline mode');
       setIsConnected(false);
     });
 
@@ -48,6 +53,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       socketInstance.off('connect');
       socketInstance.off('disconnect');
       socketInstance.off('connect_error');
+      socketInstance.off('reconnect_failed');
       socketService.disconnect();
     };
   }, []);
